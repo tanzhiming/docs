@@ -1,0 +1,414 @@
+== Eureka
+
+=== 服务发现: Eureka Client
+
+==== 添加Eureka Client依赖
+
+
+pom.xml
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+</dependency>
+----
+
+
+==== 将服务注册到Eureka
+
+application.yml
+
+[source,yml]
+----
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+----
+
+
+关闭服务发现客户端，只要将`eureka.client.enabled`设置为`false`，或者将`spring.cloud.discovery.enabled`设置为`false`。
+
+
+
+==== 安全认证
+
+HTTP basic authentication简单认证
+
+http://user:password@localhost:8761/eureka
+
+==== 状态页和健康指标
+
+[source,yml]
+eureka:
+  instance:
+    statusPageUrlPath: ${server.servletPath}/info
+    healthCheckUrlPath: ${server.servletPath}/health
+    
+
+==== Eureka 健康指标检查
+
+application.yml
+
+[source, yml]
+eureka:
+  client:
+    healthcheck:
+      enabled: true
+      
+      
+==== 使用EurekaClient
+
+[source,java]
+----
+@Autowired
+private EurekaClient discoveryClient;
+
+public String serviceUrl() {
+    InstanceInfo instance = discoveryClient.getNextServerFromEureka("STORES", false);
+    return instance.getHomePageUrl();
+}
+----
+
+=== 服务发现：Eureka Server
+
+
+==== 增加Eureka Server到工程
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+</dependency>
+----
+
+[quote]
+____
+如果工程已经使用Thymeleaf 作为模板引擎,Eureka serve的 Freemarker 模板引擎不能正确加载, 需要手工配置模板加载
+____
+
+
+
+application.xml
+
+[source,yml]
+----
+spring:
+  freemarker:
+    template-loader-path: classpath:/templates/
+    prefer-file-system-access: false
+----
+
+==== 运行Eureka Server
+
+[source,java]
+----
+@SpringBootApplication
+@EnableEurekaServer
+public class Application {
+
+    public static void main(String[] args) {
+        new SpringApplicationBuilder(Application.class).web(true).run(args);
+    }
+
+}
+----
+
+HTTP API 端点  /eureka/*
+
+
+==== 单机模式
+
+application.yml
+
+[source,yml]
+----
+server:
+  port: 8761
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    registerWithEureka: false
+    fetchRegistry: false
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+----
+
+
+==== 节点感知
+
+application.yml (两个节点感知)
+
+[source,yml]
+----
+---
+spring:
+  profiles: peer1
+eureka:
+  instance:
+    hostname: peer1
+  client:
+    serviceUrl:
+      defaultZone: http://peer2/eureka/
+
+---
+spring:
+  profiles: peer2
+eureka:
+  instance:
+    hostname: peer2
+  client:
+    serviceUrl:
+      defaultZone: http://peer1/eureka/
+----
+
+
+application.xml (三个节点感知)
+
+[source,yml]
+----
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://peer1/eureka/,http://peer2/eureka/,http://peer3/eureka/
+
+---
+spring:
+  profiles: peer1
+eureka:
+  instance:
+    hostname: peer1
+
+---
+spring:
+  profiles: peer2
+eureka:
+  instance:
+    hostname: peer2
+
+---
+spring:
+  profiles: peer3
+eureka:
+  instance:
+    hostname: peer3
+----
+
+==== 选择IP地址
+
+[source]
+eureka.instance.preferIpAddress=true
+
+
+
+==== Eureka Server安全
+
+[source,java]
+----
+@EnableWebSecurity
+class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.csrf().ignoringAntMatchers("/eureka/**");
+        super.configure(http);
+    }
+}
+----
+
+=== Eureka Region和Zone
+
+==== 概念
+
+* region: 可以理解为地理上的分区，比如亚洲地区，欧洲地区。
+* zone：可以理解为region内的具体机房。
+
+
+==== 示例配置：
+
+Eureka Server-1:
+
+[source,yml]
+----
+spring:
+  application:
+    name: Server-1
+server:
+  port: 30000
+eureka:
+  instance:
+    prefer-ip-address: true
+    status-page-url-path: /actuator/info
+    health-check-url-path: /actuator/health
+    hostname: localhost
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    prefer-same-zone-eureka: true
+    #地区
+    region: beijing
+    availability-zones:
+      beijing: zone-1,zone-2
+    service-url:
+      zone-1: http://localhost:30000/eureka/
+      zone-2: http://localhost:30001/eureka/
+----
+    
+Eureka Server-2:
+
+[source,yml]
+----
+spring:
+  application:
+    name: Server-2
+server:
+  port: 30001
+eureka:
+  instance:
+    prefer-ip-address: true
+    status-page-url-path: /actuator/info
+    health-check-url-path: /actuator/health
+    hostname: localhost
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    prefer-same-zone-eureka: true
+    #地区
+    region: beijing
+    availability-zones:
+      beijing: zone-2,zone-1
+    service-url:
+      zone-1: http://localhost:30000/eureka/
+      zone-2: http://localhost:30001/eureka/
+----
+
+Service-1:
+
+测试代码:
+
+[source,yml]
+----
+@RestController
+public class HiController {
+    @Value("${zone.name}")
+    private String zoneName;
+    
+    @RequestMapping(value = "/hi", method = RequestMethod.GET)
+    public String hi() {
+        return zoneName;
+    }
+}
+----
+
+配置文件:
+
+[source,yml]
+----
+spring:
+  application:
+    name: service
+server:
+  port: 30010
+eureka:
+  instance:
+    prefer-ip-address: true
+    status-page-url-path: /actuator/info
+    health-check-url-path: /actuator/health
+    metadata-map:
+      zone: zone-1
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    prefer-same-zone-eureka: true
+    #地区
+    region: beijing
+    availability-zones:
+      beijing: zone-1,zone-2
+    service-url:
+      zone-1: http://localhost:30000/eureka/
+      zone-2: http://localhost:30001/eureka/
+----
+
+Service-2:
+
+[source,yml]
+----
+spring:
+  application:
+    name: service
+server:
+  port: 30011
+eureka:
+  instance:
+    prefer-ip-address: true
+    status-page-url-path: /actuator/info
+    health-check-url-path: /actuator/health
+    metadata-map:
+      zone: zone-2
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    prefer-same-zone-eureka: true
+    #地区
+    region: beijing
+    availability-zones:
+      beijing: zone-2,zone-1
+    service-url:
+      zone-1: http://localhost:30000/eureka/
+      zone-2: http://localhost:30001/eureka/
+----
+
+Consumer-1
+
+调用服务代码:
+
+[source,java]
+----
+@RestController
+public class HiController {
+    @Autowired
+    private RestTemplate restTemplate;
+ 
+    @RequestMapping(value="/consumer")
+    public String hi() {
+        return restTemplate.getForObject("http://service/hi", String.class);
+    }
+}
+----
+
+配置文件：
+
+[source,yml]
+----
+spring:
+  application:
+    name: consumer
+server:
+  port: 30030
+eureka:
+  instance:
+    prefer-ip-address: true
+    status-page-url-path: /actuator/info
+    health-check-url-path: /actuator/health
+    metadata-map:
+      zone: zone-1
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    prefer-same-zone-eureka: true
+    #地区
+    region: beijing
+    availability-zones:
+      beijing: zone-1,zone-2
+    service-url:
+      zone-1: http://localhost:30000/eureka/
+      zone-2: http://localhost:30001/eureka/
+----
+
+
+
