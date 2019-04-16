@@ -223,6 +223,8 @@ class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 === Eureka Region和Zone
 
+转自https://segmentfault.com/a/1190000014107639
+
 ==== 概念
 
 * region: 可以理解为地理上的分区，比如亚洲地区，欧洲地区。
@@ -409,6 +411,14 @@ eureka:
       zone-1: http://localhost:30000/eureka/
       zone-2: http://localhost:30001/eureka/
 ----
+
+
+
+==== 官方文档
+
+https://cloud.spring.io/spring-cloud-static/Greenwich.RELEASE/multi/multi_spring-cloud-eureka-server.html[官方文档]
+
+https://github.com/spring-cloud/spring-cloud-netflix/blob/master/docs/src/main/asciidoc/spring-cloud-netflix.adoc[官方github文档]
 
 
 
