@@ -1,0 +1,42 @@
+== Lombok
+
+=== 介绍
+
+Lombok通过注解来消除冗长代码，达到优雅编程的目的。
+
+=== 添加maven依赖
+
+[source:xml]
+----
+<dependency>
+	<groupId>org.projectlombok</groupId>
+	<artifactId>lombok</artifactId>
+	<optional>true</optional>
+</dependency>
+----
+
+=== 安装插件
+
+IDEA中安装: 进入菜单settings->plugins中，查找Lombok Plugin插件安装。
+
+image::images/001.png[]
+
+=== 常用注解
+
+* `@data` 相当于@Getter @Setter @RequiredArgsConstructor @ToString @EqualsAndHashCode
+
+* `@Getter`
+* `@Setter`
+* `@ToString`
+* `@EqualsAndHashCode`
+* `@AllArgsConstructor`
+* `@NoArgsConstructor`
+* `@RequiredArgsConstructor`
+* `@Slf4j`
+* `@Log`
+* `@Builder`
+* `@Cleanup`
+* `@NonNull`
+* `@SneakyThrows`
+* `@Synchronized`
+

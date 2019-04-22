@@ -5,3 +5,4 @@ tanzhiming <jemmy.tzm@hotmail.com>
 
 
 include::eureka.adoc[]
+include::lombok.adoc[]
